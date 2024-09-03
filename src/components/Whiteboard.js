@@ -109,7 +109,7 @@ const Whiteboard = () => {
     const newGroup = {
       id: `group-${nextId}`,
       x: tempGroup.startX,
-      y: tempGroup.startY - 48,
+      y: tempGroup.startY,
       width: Math.abs(tempGroup.width),
       height: Math.abs(tempGroup.height)
     };
