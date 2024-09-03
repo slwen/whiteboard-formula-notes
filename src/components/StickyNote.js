@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 const StickyNote = ({ id, text, color, x, y, onChange, onDrag, isNew }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x, y });
+  const [noteText, setNoteText] = useState(text);
   const noteRef = useRef(null);
   const textareaRef = useRef(null);
   const offsetRef = useRef({ x: 0, y: 0 });
@@ -16,6 +17,10 @@ const StickyNote = ({ id, text, color, x, y, onChange, onDrag, isNew }) => {
   useEffect(() => {
     setPosition({ x, y });
   }, [x, y]);
+
+  useEffect(() => {
+    setNoteText(text);
+  }, [text]);
 
   const handleMouseDown = (e) => {
     const rect = noteRef.current.getBoundingClientRect();
@@ -36,7 +41,14 @@ const StickyNote = ({ id, text, color, x, y, onChange, onDrag, isNew }) => {
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
+      onDrag(id, position.x, position.y);
     }
+  };
+
+  const handleTextChange = (e) => {
+    const newText = e.target.value;
+    setNoteText(newText);
+    onChange(id, newText);
   };
 
   useEffect(() => {
@@ -50,6 +62,7 @@ const StickyNote = ({ id, text, color, x, y, onChange, onDrag, isNew }) => {
 
   return (
     <div
+      id={`note-${id}`}
       ref={noteRef}
       className="sticky-note"
       style={{
@@ -65,8 +78,8 @@ const StickyNote = ({ id, text, color, x, y, onChange, onDrag, isNew }) => {
     >
       <textarea
         ref={textareaRef}
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
+        value={noteText}
+        onChange={handleTextChange}
         style={{ 
           backgroundColor: 'transparent', 
           border: 'none', 
