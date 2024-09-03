@@ -150,7 +150,42 @@ const Whiteboard = () => {
     });
   }, [groupedNotes]);
 
-  const isNoteInGroup = (note, group) => {
+  const handleGroupResize = useCallback((id, newX, newY, newWidth, newHeight) => {
+    setGroups(prevGroups => prevGroups.map(group => 
+      group.id === id ? { ...group, x: newX, y: newY, width: newWidth, height: newHeight } : group
+    ));
+
+    // Re-evaluate which notes are in the resized group
+    const resizedGroup = { id, x: newX, y: newY, width: newWidth, height: newHeight };
+    
+    setGroupedNotes(prevGroupedNotes => {
+      const updatedGroupedNotes = { ...prevGroupedNotes };
+      
+      // Remove notes that are no longer in the group
+      if (updatedGroupedNotes[id]) {
+        updatedGroupedNotes[id] = updatedGroupedNotes[id].filter(noteId => {
+          const note = notes.find(n => n.id === noteId);
+          return note && isNoteInGroup(note, resizedGroup);
+        });
+      }
+
+      // Add notes that are now in the group
+      notes.forEach(note => {
+        if (isNoteInGroup(note, resizedGroup)) {
+          if (!updatedGroupedNotes[id]) {
+            updatedGroupedNotes[id] = [];
+          }
+          if (!updatedGroupedNotes[id].includes(note.id)) {
+            updatedGroupedNotes[id].push(note.id);
+          }
+        }
+      });
+
+      return updatedGroupedNotes;
+    });
+  }, [notes]);
+
+  const isNoteInGroup = useCallback((note, group) => {
     const noteRight = note.x + 150; // Assuming note width is 150px
     const noteBottom = note.y + 150; // Assuming note height is 150px
     const groupRight = group.x + group.width;
@@ -160,7 +195,7 @@ const Whiteboard = () => {
            noteRight <= groupRight &&
            note.y >= group.y &&
            noteBottom <= groupBottom;
-  };
+  }, []);
 
   return (
     <div 
@@ -176,7 +211,7 @@ const Whiteboard = () => {
           key={group.id}
           {...group}
           onDrag={handleGroupDrag}
-          groupedNotes={notes.filter(note => (groupedNotes[group.id] || []).includes(note.id))}
+          onResize={handleGroupResize}
         />
       ))}
       {notes.map(note => (

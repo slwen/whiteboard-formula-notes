@@ -1,45 +1,61 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-const GroupElement = ({ id, x, y, width, height, onDrag, children }) => {
+const GroupElement = ({ id, x, y, width, height, onDrag, onResize, children }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState(null);
   const groupRef = useRef(null);
-  const dragRef = useRef({ x, y });
-  const frameRef = useRef();
-
-  useEffect(() => {
-    dragRef.current = { x, y };
-    groupRef.current.style.transform = `translate(${x}px, ${y}px)`;
-  }, [x, y]);
+  const dragStartRef = useRef({ x, y });
+  const resizeStartRef = useRef({ width, height });
+  const mouseStartRef = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = useCallback((e) => {
-    setIsDragging(true);
-    const rect = groupRef.current.getBoundingClientRect();
-    dragRef.current.offsetX = e.clientX - rect.left;
-    dragRef.current.offsetY = e.clientY - rect.top;
-  }, []);
+    if (e.target.classList.contains('resize-handle')) {
+      setIsResizing(true);
+      setResizeHandle(e.target.dataset.handle);
+      resizeStartRef.current = { width, height };
+      mouseStartRef.current = { x: e.clientX, y: e.clientY };
+    } else {
+      setIsDragging(true);
+      dragStartRef.current = { x: e.clientX - x, y: e.clientY - y };
+    }
+  }, [x, y, width, height]);
 
   const handleMouseMove = useCallback((e) => {
     if (isDragging) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = requestAnimationFrame(() => {
-        const newX = e.clientX - dragRef.current.offsetX;
-        const newY = e.clientY - dragRef.current.offsetY;
-        dragRef.current.x = newX;
-        dragRef.current.y = newY;
-        groupRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
-      });
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      onDrag(id, newX, newY);
+    } else if (isResizing) {
+      const dx = e.clientX - mouseStartRef.current.x;
+      const dy = e.clientY - mouseStartRef.current.y;
+      let newWidth = resizeStartRef.current.width;
+      let newHeight = resizeStartRef.current.height;
+      let newX = x;
+      let newY = y;
+
+      if (resizeHandle.includes('e')) newWidth += dx;
+      if (resizeHandle.includes('s')) newHeight += dy;
+      if (resizeHandle.includes('w')) {
+        newWidth -= dx;
+        newX += dx;
+      }
+      if (resizeHandle.includes('n')) {
+        newHeight -= dy;
+        newY += dy;
+      }
+
+      onResize(id, newX, newY, newWidth, newHeight);
     }
-  }, [isDragging]);
+  }, [id, isDragging, isResizing, onDrag, onResize, resizeHandle, x, y]);
 
   const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      onDrag(id, dragRef.current.x, dragRef.current.y);
-    }
-  }, [isDragging, id, onDrag]);
+    setIsDragging(false);
+    setIsResizing(false);
+  }, []);
 
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging || isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     } else {
@@ -50,23 +66,28 @@ const GroupElement = ({ id, x, y, width, height, onDrag, children }) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
   return (
     <div
       ref={groupRef}
       style={{
         position: 'absolute',
+        left: `${x}px`,
+        top: `${y}px`,
         width: `${width}px`,
         height: `${height}px`,
-        backgroundColor: 'rgba(200, 200, 200, 0.15)',
-        border: '2px dotted rgba(150, 150, 150, 0.45)',
+        backgroundColor: 'rgba(200, 200, 200, 0.2)',
+        border: '2px dotted rgba(150, 150, 150, 0.5)',
         zIndex: 0,
-        transform: `translate(${x}px, ${y}px)`,
       }}
       onMouseDown={handleMouseDown}
     >
       {children}
+      <div className="resize-handle nw" data-handle="nw" style={{cursor: 'nwse-resize'}}></div>
+      <div className="resize-handle ne" data-handle="ne" style={{cursor: 'nesw-resize'}}></div>
+      <div className="resize-handle sw" data-handle="sw" style={{cursor: 'nesw-resize'}}></div>
+      <div className="resize-handle se" data-handle="se" style={{cursor: 'nwse-resize'}}></div>
     </div>
   );
 };

@@ -58,3 +58,16 @@
   font-family: Arial, sans-serif;
   font-size: 16px;
 }
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+}
+
+.resize-handle.nw { top: -5px; left: -5px; }
+.resize-handle.ne { top: -5px; right: -5px; }
+.resize-handle.sw { bottom: -5px; left: -5px; }
+.resize-handle.se { bottom: -5px; right: -5px; }
