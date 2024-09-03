@@ -1,7 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import StickyNote from './StickyNote';
 import GroupElement from './GroupElement';
 import Toolbar from './Toolbar';
+import FormulaNote from './FormulaNote';
 import { getRandomColor } from '../utils/colors';
 
 const Whiteboard = () => {
@@ -20,6 +23,7 @@ const Whiteboard = () => {
   const [tempGroup, setTempGroup] = useState(null);
   const whiteboardRef = useRef(null);
   const [groupedNotes, setGroupedNotes] = useState({});
+  const [formulaNotes, setFormulaNotes] = useState([]);
 
   const handleNoteChange = useCallback((id, newText) => {
     setNotes(prevNotes => prevNotes.map(note => 
@@ -144,6 +148,12 @@ const Whiteboard = () => {
           }
           return note;
         }));
+        setFormulaNotes(prevNotes => prevNotes.map(note => {
+          if (groupNoteIds.includes(note.id)) {
+            return { ...note, x: note.x + dx, y: note.y + dy };
+          }
+          return note;
+        }));
       }
       
       return updatedGroups;
@@ -197,46 +207,119 @@ const Whiteboard = () => {
            noteBottom <= groupBottom;
   }, []);
 
+  const addNewFormulaNote = useCallback(() => {
+    const newFormulaNote = {
+      id: `formula-${nextId}`,
+      x: Math.random() * (window.innerWidth - 200),
+      y: Math.random() * (window.innerHeight - 200),
+      formulaType: 'countAll',
+      searchText: '',
+      selectedColors: [],
+    };
+
+    setFormulaNotes(prevNotes => [...prevNotes, newFormulaNote]);
+    setNextId(prevId => prevId + 1);
+  }, [nextId]);
+
+  const handleFormulaNoteChange = useCallback((id, newData) => {
+    setFormulaNotes(prevNotes => prevNotes.map(note => 
+      note.id === id ? { ...note, ...newData } : note
+    ));
+  }, []);
+
+  const handleFormulaNoteMove = useCallback((id, x, y) => {
+    setFormulaNotes(prevNotes => prevNotes.map(note => 
+      note.id === id ? { ...note, x, y } : note
+    ));
+
+    const movedNote = { id, x, y, width: 200, height: 200 };
+
+    // Update groupedNotes similar to handleNoteDrag
+    setGroupedNotes(prevGroupedNotes => {
+      const updatedGroupedNotes = { ...prevGroupedNotes };
+
+      for (const [groupId, noteIds] of Object.entries(updatedGroupedNotes)) {
+        if (noteIds.includes(id)) {
+          const group = groups.find(g => g.id === groupId);
+          if (!isNoteInGroup(movedNote, group)) {
+            updatedGroupedNotes[groupId] = noteIds.filter(noteId => noteId !== id);
+          }
+        }
+      }
+
+      groups.forEach(group => {
+        if (isNoteInGroup(movedNote, group)) {
+          if (!updatedGroupedNotes[group.id]) {
+            updatedGroupedNotes[group.id] = [];
+          }
+          if (!updatedGroupedNotes[group.id].includes(id)) {
+            updatedGroupedNotes[group.id] = [...updatedGroupedNotes[group.id], id];
+          }
+        }
+      });
+
+      return updatedGroupedNotes;
+    });
+  }, [groups]);
+
   return (
-    <div 
-      ref={whiteboardRef}
-      className="whiteboard"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-    >
-      <Toolbar onAddNote={addNewNote} onAddGroup={handleAddGroup} />
-      {groups.map(group => (
-        <GroupElement
-          key={group.id}
-          {...group}
-          onDrag={handleGroupDrag}
-          onResize={handleGroupResize}
-        />
-      ))}
-      {notes.map(note => (
-        <StickyNote
-          key={note.id}
-          {...note}
-          onChange={(id, text) => handleNoteChange(id, text)}
-          onDrag={(id, x, y) => handleNoteDrag(id, x, y)}
-        />
-      ))}
-      {tempGroup && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${tempGroup.startX}px`,
-            top: `${tempGroup.startY}px`,
-            width: `${tempGroup.width}px`,
-            height: `${tempGroup.height}px`,
-            border: '2px dotted rgba(150, 150, 150, 0.5)',
-            backgroundColor: 'rgba(200, 200, 200, 0.2)',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-    </div>
+    <DndProvider backend={HTML5Backend}>
+      <div 
+        ref={whiteboardRef}
+        className="whiteboard"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        <Toolbar onAddNote={addNewNote} onAddGroup={handleAddGroup} onAddFormulaNote={addNewFormulaNote} />
+        {groups.map(group => (
+          <GroupElement
+            key={group.id}
+            {...group}
+            onDrag={handleGroupDrag}
+            onResize={handleGroupResize}
+          />
+        ))}
+        {notes.map(note => (
+          <StickyNote
+            key={note.id}
+            {...note}
+            onChange={(id, text) => handleNoteChange(id, text)}
+            onDrag={(id, x, y) => handleNoteDrag(id, x, y)}
+          />
+        ))}
+        {formulaNotes.map(note => (
+          <FormulaNote
+            key={note.id}
+            id={note.id}
+            x={note.x}
+            y={note.y}
+            formulaType={note.formulaType}
+            searchText={note.searchText}
+            selectedColors={note.selectedColors}
+            notes={notes}
+            groups={groups}
+            groupedNotes={groupedNotes}
+            onChange={handleFormulaNoteChange}
+            onMove={handleFormulaNoteMove}
+          />
+        ))}
+        {tempGroup && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${tempGroup.startX}px`,
+              top: `${tempGroup.startY}px`,
+              width: `${tempGroup.width}px`,
+              height: `${tempGroup.height}px`,
+              border: '2px dotted rgba(150, 150, 150, 0.5)',
+              backgroundColor: 'rgba(200, 200, 200, 0.2)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </div>
+    </DndProvider>
   );
 };
 
