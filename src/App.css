@@ -38,7 +38,7 @@
 .whiteboard {
   position: relative;
   width: 100%;
-  height: calc(100vh - 50px); /* Adjust based on your toolbar height */
+  height: 100vh; /* Adjust based on your toolbar height */
   overflow: hidden;
   background-color: #f6f6f6;
 }
@@ -50,6 +50,7 @@
   padding: 10px;
   box-shadow: 0 3px 6px rgba(0,0,0,0.16);
   cursor: move;
+  border-radius: 4px;
 }
 
 .sticky-note textarea {
